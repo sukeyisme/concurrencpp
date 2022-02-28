@@ -59,11 +59,10 @@ namespace concurrencpp::details {
     class consumer_context {
 
        private:
-        enum class consumer_status { idle, await, wait_for, when_any };
+        enum class consumer_status { idle, await, when_any };
 
         union storage {
             coroutine_handle<void> caller_handle;
-            std::shared_ptr<wait_context> wait_for_ctx;
             std::shared_ptr<when_any_context> when_any_ctx;
 
             template<class type, class... argument_type>
@@ -93,7 +92,6 @@ namespace concurrencpp::details {
         void resume_consumer(result_state_base& self) const;
 
         void set_await_handle(coroutine_handle<void> caller_handle) noexcept;
-        void set_wait_for_context(const std::shared_ptr<wait_context>& wait_ctx) noexcept;
         void set_when_any_context(const std::shared_ptr<when_any_context>& when_any_ctx) noexcept;
     };
 }  // namespace concurrencpp::details

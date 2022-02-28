@@ -176,10 +176,6 @@ void consumer_context::destroy() noexcept {
             return storage::destroy(m_storage.caller_handle);
         }
 
-        case consumer_status::wait_for: {
-            return storage::destroy(m_storage.wait_for_ctx);
-        }
-
         case consumer_status::when_any: {
             return storage::destroy(m_storage.when_any_ctx);
         }
@@ -199,12 +195,6 @@ void consumer_context::set_await_handle(coroutine_handle<void> caller_handle) no
     storage::build(m_storage.caller_handle, caller_handle);
 }
 
-void consumer_context::set_wait_for_context(const std::shared_ptr<wait_context>& wait_ctx) noexcept {
-    assert(m_status == consumer_status::idle);
-    m_status = consumer_status::wait_for;
-    storage::build(m_storage.wait_for_ctx, wait_ctx);
-}
-
 void consumer_context::set_when_any_context(const std::shared_ptr<when_any_context>& when_any_ctx) noexcept {
     assert(m_status == consumer_status::idle);
     m_status = consumer_status::when_any;
@@ -222,12 +212,6 @@ void consumer_context::resume_consumer(result_state_base& self) const {
             assert(static_cast<bool>(caller_handle));
             assert(!caller_handle.done());
             return caller_handle();
-        }
-
-        case consumer_status::wait_for: {
-            const auto wait_ctx = m_storage.wait_for_ctx;
-            assert(static_cast<bool>(wait_ctx));
-            return wait_ctx->notify();
         }
 
         case consumer_status::when_any: {

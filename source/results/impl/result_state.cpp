@@ -24,15 +24,46 @@ void result_state_base::wait() {
         return;
     }
 
-    while (true) {
-        if (m_pc_state.load(std::memory_order_acquire) == pc_state::producer_done) {
-            break;
-        }
+    atomic_wait(m_pc_state, pc_state::consumer_waiting, std::memory_order_acquire);
+    assert_done();
+}
 
-        m_pc_state.wait(pc_state::consumer_waiting, std::memory_order_acquire);
+result_state_base::pc_state result_state_base::wait_for(std::chrono::milliseconds ms) {
+    const auto state = m_pc_state.load(std::memory_order_acquire);
+    if (state == pc_state::producer_done) {
+        return pc_state::producer_done;
+    }
+
+    auto expected_state = pc_state::idle;
+    const auto idle = m_pc_state.compare_exchange_strong(expected_state,
+                                                         pc_state::consumer_waiting,
+                                                         std::memory_order_acq_rel,
+                                                         std::memory_order_acquire);
+
+    if (!idle) {
+        assert_done();
+        return pc_state::producer_done;
+    }
+
+    ms += std::chrono::milliseconds(2);
+    const auto res = atomic_wait_for(m_pc_state, pc_state::consumer_waiting, ms, std::memory_order_acquire);
+    if (res == atomic_wait_status::ok) {
+        assert_done();
+        return pc_state::producer_done;
+    }
+
+    assert(res == atomic_wait_status::timeout);
+    // revert m_pc_state to idle
+    expected_state = pc_state::consumer_waiting;
+    const auto still_idle =
+        m_pc_state.compare_exchange_strong(expected_state, pc_state::idle, std::memory_order_acq_rel, std::memory_order_acquire);
+
+    if (still_idle) {
+        return pc_state::idle;
     }
 
     assert_done();
+    return pc_state::producer_done;
 }
 
 bool result_state_base::await(coroutine_handle<void> caller_handle) noexcept {

@@ -1,6 +1,7 @@
 #ifndef CONCURRENCPP_RESULT_STATE_H
 #define CONCURRENCPP_RESULT_STATE_H
 
+#include "concurrencpp/threads/atomic_wait.h"
 #include "concurrencpp/results/impl/consumer_context.h"
 #include "concurrencpp/results/impl/producer_context.h"
 
@@ -13,7 +14,7 @@ namespace concurrencpp::details {
     class result_state_base {
 
        public:
-        enum class pc_state { idle, consumer_set, consumer_waiting, consumer_done, producer_done };
+        enum class pc_state : int { idle, consumer_set, consumer_waiting, consumer_done, producer_done };
 
        protected:
         std::atomic<pc_state> m_pc_state {pc_state::idle};
@@ -24,6 +25,7 @@ namespace concurrencpp::details {
 
        public:
         void wait();
+        pc_state wait_for(std::chrono::milliseconds ms);
         bool await(coroutine_handle<void> caller_handle) noexcept;
         pc_state when_any(const std::shared_ptr<when_any_context>& when_any_state) noexcept;
 
@@ -82,52 +84,12 @@ namespace concurrencpp::details {
 
         template<class duration_unit, class ratio>
         result_status wait_for(std::chrono::duration<duration_unit, ratio> duration) {
-            const auto state_0 = m_pc_state.load(std::memory_order_acquire);
-            if (state_0 == pc_state::producer_done) {
+            const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+            const auto res = result_state_base::wait_for(ms);
+            if (res == pc_state::producer_done) {
                 return m_producer.status();
             }
 
-            const auto wait_ctx = std::make_shared<wait_context>();
-            m_consumer.set_wait_for_context(wait_ctx);
-
-            auto expected_idle_state = pc_state::idle;
-            const auto idle_0 = m_pc_state.compare_exchange_strong(expected_idle_state,
-                                                                   pc_state::consumer_set,
-                                                                   std::memory_order_acq_rel,
-                                                                   std::memory_order_acquire);
-
-            if (!idle_0) {
-                assert_done();
-                return m_producer.status();
-            }
-
-            const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-            if (wait_ctx->wait_for(static_cast<size_t>(ms + 1))) {
-                assert_done();
-                return m_producer.status();
-            }
-
-            /*
-                now we need to rewind what we've done: the producer might try to
-                access the consumer context while we rewind the consumer context back to
-                nothing. first we'll cas the status back to idle. if we failed - the
-                producer has set its result, then there's no point in continue rewinding
-                - we just return the status of the result. if we managed to rewind the
-                status back to idle, then the consumer is "protected" because the
-                producer will not try to access the consumer if the flag doesn't say so.
-            */
-            auto expected_consumer_state = pc_state::consumer_set;
-            const auto idle_1 = m_pc_state.compare_exchange_strong(expected_consumer_state,
-                                                                   pc_state::idle,
-                                                                   std::memory_order_acq_rel,
-                                                                   std::memory_order_acquire);
-
-            if (!idle_1) {
-                assert_done();
-                return m_producer.status();
-            }
-
-            m_consumer.clear();
             return result_status::idle;
         }
 
@@ -174,7 +136,7 @@ namespace concurrencpp::details {
                 }
 
                 case pc_state::consumer_waiting: {
-                    return m_pc_state.notify_one();
+                    return atomic_notify_one(m_pc_state);
                 }
 
                 case pc_state::consumer_done: {

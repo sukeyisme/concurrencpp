@@ -29,6 +29,7 @@ set(concurrencpp_sources
         source/results/impl/shared_result_state.cpp
         source/results/promises.cpp
         source/runtime/runtime.cpp
+        source/threads/atomic_wait.cpp
         source/threads/async_lock.cpp
         source/threads/binary_semaphore.cpp
         source/threads/thread.cpp
@@ -72,6 +73,7 @@ set(concurrencpp_headers
         include/concurrencpp/results/generator.h
         include/concurrencpp/runtime/constants.h
         include/concurrencpp/runtime/runtime.h
+        include/concurrencpp/threads/atomic_wait.h
         include/concurrencpp/threads/async_lock.h
         include/concurrencpp/threads/binary_semaphore.h
         include/concurrencpp/threads/thread.h
