@@ -1,8 +1,8 @@
 #ifndef CONCURRENCPP_THREAD_H
 #define CONCURRENCPP_THREAD_H
 
-#include <string_view>
 #include <thread>
+#include <string_view>
 
 namespace concurrencpp::details {
     class thread {

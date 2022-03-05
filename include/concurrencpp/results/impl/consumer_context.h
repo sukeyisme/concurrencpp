@@ -4,9 +4,6 @@
 #include "concurrencpp/coroutines/coroutine.h"
 #include "concurrencpp/results/result_fwd_declarations.h"
 
-#include <mutex>
-#include <condition_variable>
-
 namespace concurrencpp::details {
     class await_via_functor {
 
@@ -20,20 +17,6 @@ namespace concurrencpp::details {
         ~await_via_functor() noexcept;
 
         void operator()() noexcept;
-    };
-
-    class wait_context {
-
-       private:
-        std::mutex m_lock;
-        std::condition_variable m_condition;
-        bool m_ready = false;
-
-       public:
-        void wait();
-        bool wait_for(size_t milliseconds);
-
-        void notify();
     };
 
     class when_any_context {
@@ -89,7 +72,7 @@ namespace concurrencpp::details {
         ~consumer_context() noexcept;
 
         void clear() noexcept;
-        void resume_consumer(result_state_base& self) const;
+        void resume_consumer(result_state_base& self) const noexcept;
 
         void set_await_handle(coroutine_handle<void> caller_handle) noexcept;
         void set_when_any_context(const std::shared_ptr<when_any_context>& when_any_ctx) noexcept;

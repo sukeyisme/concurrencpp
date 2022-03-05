@@ -4,9 +4,11 @@
 #include <atomic>
 #include <chrono>
 
+#include <cassert>
+
 namespace concurrencpp::details {
-    void atomic_wait_native(void* atom, int old) noexcept;
-    void atomic_wait_for_native(void* atom, int old, std::chrono::milliseconds ms) noexcept;
+    void atomic_wait_native(void* atom, int32_t old) noexcept;
+    void atomic_wait_for_native(void* atom, int32_t old, std::chrono::milliseconds ms) noexcept;
     void atomic_notify_one_native(void* atom) noexcept;
     void atomic_notify_all_native(void* atom) noexcept;
 
@@ -14,8 +16,8 @@ namespace concurrencpp::details {
 
     template<class type>
     void atomic_wait(std::atomic<type>& atom, type old, std::memory_order order) noexcept {
-        static_assert(std::is_standard_layout_v<std::atomic<type>>, "std::atom<type> is not standard-layout");
- //       static_assert(std::is_convertible_v<type, int>, "type is not convertible to int");
+        static_assert(std::is_standard_layout_v<std::atomic<type>>, "atomic_wait - std::atom<type> is not standard-layout");
+        static_assert(sizeof(type) == sizeof(int32_t), "atomic_wait - <<type>> must be 4 bytes.");
 
         while (true) {
             const auto val = atom.load(order);
@@ -23,7 +25,7 @@ namespace concurrencpp::details {
                 return;
             }
 
-            atomic_wait_native(&atom, static_cast<int>(old));
+            atomic_wait_native(&atom, static_cast<int32_t>(old));
         }
     }
 
@@ -32,8 +34,8 @@ namespace concurrencpp::details {
                                        type old,
                                        std::chrono::milliseconds ms,
                                        std::memory_order order) noexcept {
-        static_assert(std::is_standard_layout_v<std::atomic<type>>, "std::atom<type> is not standard-layout");
-//        static_assert(std::is_convertible_v<type, int>, "type is not convertible to int");
+        static_assert(std::is_standard_layout_v<std::atomic<type>>, "atomic_wait_for - std::atom<type> is not standard-layout");
+        static_assert(sizeof(type) == sizeof(int32_t), "atomic_wait_for - <<type>> must be 4 bytes.");
 
         const auto deadline = std::chrono::system_clock::now() + ms;
 
@@ -49,7 +51,8 @@ namespace concurrencpp::details {
             }
 
             const auto time_diff = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
-            atomic_wait_for_native(&atom, static_cast<int>(old), time_diff);
+            assert(time_diff.count() > 0);
+            atomic_wait_for_native(&atom, static_cast<int32_t>(old), time_diff);
         }
     }
 

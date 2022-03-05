@@ -2,6 +2,7 @@
 
 #include "infra/tester.h"
 #include "infra/assertions.h"
+#include "utils/wait_context.h"
 #include "utils/object_observer.h"
 #include "utils/test_generators.h"
 #include "utils/test_ready_result.h"
@@ -406,7 +407,7 @@ void concurrencpp::tests::test_thread_pool_executor_enqueue_algorithm() {
     {
         object_observer observer;
         const size_t worker_count = 6;
-        auto wc = std::make_shared<concurrencpp::details::wait_context>();
+        auto wc = std::make_shared<wait_context>();
         auto executor = std::make_shared<thread_pool_executor>("threadpool", worker_count, std::chrono::seconds(10));
         executor_shutdowner shutdown(executor);
 
@@ -434,7 +435,7 @@ void concurrencpp::tests::test_thread_pool_executor_enqueue_algorithm() {
     // self
     {
         object_observer observer;
-        auto wc = std::make_shared<concurrencpp::details::wait_context>();
+        auto wc = std::make_shared<wait_context>();
         auto executor = std::make_shared<thread_pool_executor>("threadpool", 2, std::chrono::seconds(10));
         executor_shutdowner shutdown(executor);
 
@@ -463,7 +464,7 @@ void concurrencpp::tests::test_thread_pool_executor_enqueue_algorithm() {
         const size_t task_count = 4'024;
         const size_t worker_count = 4;
         object_observer observer;
-        auto wc = std::make_shared<concurrencpp::details::wait_context>();
+        auto wc = std::make_shared<wait_context>();
         auto executor = std::make_shared<thread_pool_executor>("threadpool", worker_count, std::chrono::seconds(10));
         executor_shutdowner shutdown(executor);
 
